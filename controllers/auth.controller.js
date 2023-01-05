@@ -2,6 +2,7 @@
 import User from '../models/user.model'
 const { hashPassword, comparePassword } = require('../helpers/auth.helper');
 // import { hashPassword, comparePassword } from '../helpers/auth.helper';
+const jwt = require('jsonwebtoken');
 
 export const register = async(req, res) => {
     const { name, email, password, secret } = req.body;
@@ -28,5 +29,31 @@ export const register = async(req, res) => {
     } catch (err) {
         console.log("L'INSCRIPTION A ECHOUE => ", err);
         return res.status(400).send('Erreur. Veuillez réessayé');
+    }
+}
+
+export const login = async(req, res) => {
+    console.log(req.body);
+    try {
+        const { email, password } = req.body;
+        // Check if our db user with that email
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).send("Cet email n'existe pas.")
+        // Check Password
+        const match = await comparePassword(password, user.password);
+        if (!match) return res.status(400).send('Mot de passe incorrect');
+        // Create a signed token
+        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: '7d'
+        });
+        user.password = undefined;
+        user.secret = undefined;
+        res.json({
+            token,
+            user
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(400).send('Erreur. Veuillez réessayer');
     }
 }
